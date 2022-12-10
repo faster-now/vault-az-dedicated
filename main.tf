@@ -29,7 +29,8 @@ resource "azurerm_public_ip" "my_terraform_public_ip" {
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Dynamic"
-  zones               = ["1"]
+  #zones               = ["1"]
+  availability_zone   = "No-Zone"
 }
 
 # Create Network Security Group and rule
@@ -143,7 +144,8 @@ resource "null_resource" "bootstrap_ansible" {
         "sudo apt-get update",
         "sudo apt-get install -y python3-pip",
         "sudo pip3 install --upgrade pip",
-        "pip3 install ansible"
+        "pip3 install ansible",
+        "sudo mkdir -p /etc/ansible/"
         #"pip3 install ansible[azure]"
         /*"sudo amazon-linux-extras install ansible2 -y",
         "sudo yum install git -y",
@@ -151,8 +153,30 @@ resource "null_resource" "bootstrap_ansible" {
         "ansible-playbook /tmp/ans_ws/site.yaml"*/
       ]
     }
+
+    provisioner "file" {
+      source      = "ansible/hosts"
+      destination = "/tmp/hosts"
+    }
+
+    provisioner "file" {
+      source      = "ansible/bootstrap-docker.yml"
+      destination = "/tmp/bootstrap-docker.yml"
+    }
+
+    provisioner "remote-exec" {
+      inline = [
+        "sudo cp /tmp/hosts /etc/ansible/hosts",
+        "sudo cp /tmp/bootstrap-docker.yml ~/bootstrap-docker.yml",
+        "sudo rm /tmp/hosts",
+        "sudo rm /tmp/bootstrap-docker.yml"
+        ]
+    }
+
     depends_on = [
       azurerm_linux_virtual_machine.my_terraform_vm
     ]
     triggers = {ip=azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address}
+
+      
 }
