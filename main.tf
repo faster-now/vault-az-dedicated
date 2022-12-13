@@ -50,6 +50,18 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
+  /* Considered this to enable Docker connection by TF but decided not to
+    security_rule {
+    name                       = "SSH"
+    priority                   = 1001
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "2375"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }*/
 }
 
 # Create network interface
@@ -112,7 +124,7 @@ resource "azurerm_linux_virtual_machine" "my_terraform_vm" {
   os_disk {
     name                 = "myOsDisk"
     caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
+    storage_account_type = "Premium_LRS"
   }
 
 source_image_reference {
@@ -139,13 +151,26 @@ resource "null_resource" "bootstrap_ansible" {
       private_key = tls_private_key.example_ssh.private_key_pem #"${file("rajesh.pem")}"
       host        = azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address
     }
+
+    provisioner "remote-exec" { #first try deleting private key incase it already exists to avoid scp permission denied error when trying to create it below
+      inline = [
+        "sudo rm ~/az-ssh-priv.key"
+      ]
+    }
+
+    provisioner "file" {
+      content      = tls_private_key.example_ssh.private_key_pem
+      destination = "~/az-ssh-priv.key"
+    }
+
     provisioner "remote-exec" {
       inline = [
         "sudo apt-get update",
         "sudo apt-get install -y python3-pip",
         "sudo pip3 install --upgrade pip",
         "pip3 install ansible",
-        "sudo mkdir -p /etc/ansible/"
+        "sudo mkdir -p /etc/ansible/",
+        "sudo chmod 400 ~/az-ssh-priv.key"
         #"pip3 install ansible[azure]"
         /*"sudo amazon-linux-extras install ansible2 -y",
         "sudo yum install git -y",
@@ -160,6 +185,11 @@ resource "null_resource" "bootstrap_ansible" {
     }
 
     provisioner "file" {
+      source      = "ansible/ansible.cfg"
+      destination = "/tmp/ansible.cfg"
+    }
+
+    provisioner "file" {
       source      = "ansible/bootstrap-docker.yml"
       destination = "/tmp/bootstrap-docker.yml"
     }
@@ -168,7 +198,9 @@ resource "null_resource" "bootstrap_ansible" {
       inline = [
         "sudo cp /tmp/hosts /etc/ansible/hosts",
         "sudo cp /tmp/bootstrap-docker.yml ~/bootstrap-docker.yml",
+        "sudo cp /tmp/ansible.cfg /etc/ansible/ansible.cfg",
         "sudo rm /tmp/hosts",
+        "sudo rm /tmp/ansible.cfg",
         "sudo rm /tmp/bootstrap-docker.yml"
         ]
     }
@@ -177,6 +209,52 @@ resource "null_resource" "bootstrap_ansible" {
       azurerm_linux_virtual_machine.my_terraform_vm
     ]
     triggers = {ip=azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address}
-
-      
 }
+
+resource "null_resource" "bootstrap_docker" {
+  connection {
+      type        = "ssh"
+      user        = azurerm_linux_virtual_machine.my_terraform_vm.admin_username
+      private_key = tls_private_key.example_ssh.private_key_pem #"${file("rajesh.pem")}"
+      host        = azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address
+    }
+    provisioner "remote-exec" {
+      inline = [
+        "sudo apt-get update",
+        "sudo apt-get install -y ca-certificates",
+        "sudo apt-get install -y curl",
+        "sudo apt-get install -y gnupg",
+        "sudo apt-get install -y lsb-release",
+        "sudo mkdir -p /etc/apt/keyrings",
+        "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor --batch --yes -o /etc/apt/keyrings/docker.gpg",
+        "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
+        "sudo apt-get update",
+        "sudo apt-get -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin"
+        #"pip3 install ansible[azure]"
+        /*"sudo amazon-linux-extras install ansible2 -y",
+        "sudo yum install git -y",
+        "git clone https://github.com/devops-school/ansible-hello-world-role /tmp/ans_ws",
+        "ansible-playbook /tmp/ans_ws/site.yaml"*/
+      ]
+    }
+
+    depends_on = [
+      azurerm_linux_virtual_machine.my_terraform_vm,
+      null_resource.bootstrap_ansible
+    ]
+    triggers = {ip=azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address}
+}
+
+/*resource "docker_network" "vault_network" {
+  name = "vault_network"
+}
+
+module "provision_consul_container" {
+  source                  = "./modules/consul"
+  host_user               = azurerm_linux_virtual_machine.my_terraform_vm.admin_username
+  host_ssh_private_key    = tls_private_key.example_ssh.private_key_pem
+  host_ip_address         = azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address
+  network                 = docker_network.vault_network.name
+
+
+} */
