@@ -117,14 +117,15 @@ resource "azurerm_linux_virtual_machine" "my_terraform_vm" {
   resource_group_name   = azurerm_resource_group.rg.name
   network_interface_ids = [azurerm_network_interface.my_terraform_nic.id]
   size                  = "Standard_B1s"
-  computer_name                   = "myvm"
-  admin_username                  = "azureuser"
+  computer_name         = "myvm"
+  admin_username        = "azureuser"
   disable_password_authentication = true
 
   os_disk {
     name                 = "myOsDisk"
     caching              = "ReadWrite"
     storage_account_type = "Premium_LRS"
+    disk_size_gb         = 64
   }
 
 source_image_reference {
@@ -154,7 +155,7 @@ resource "null_resource" "bootstrap_ansible" {
 
     provisioner "remote-exec" { #first try deleting private key incase it already exists to avoid scp permission denied error when trying to create it below
       inline = [
-        "sudo rm ~/az-ssh-priv.key"
+        "sudo rm -rf ~/az-ssh-priv.key | true" #try removing the file but dont give an error message and fail the plan if the file doesnt exist
       ]
     }
 
@@ -169,7 +170,13 @@ resource "null_resource" "bootstrap_ansible" {
         "sudo apt-get install -y python3-pip",
         "sudo pip3 install --upgrade pip",
         "pip3 install ansible",
-        "sudo mkdir -p /etc/ansible/",
+        "pip3 install docker",
+        "sudo gpasswd -a $USER docker",
+        #"sudo newgrp docker",
+        "sudo mkdir -p /tmp/ansible/",
+        "sudo chmod 777 /tmp/ansible",
+        "sudo mkdir -p /tmp/consul/",
+        "sudo chmod 777 /tmp/consul",
         "sudo chmod 400 ~/az-ssh-priv.key"
         #"pip3 install ansible[azure]"
         /*"sudo amazon-linux-extras install ansible2 -y",
@@ -179,6 +186,16 @@ resource "null_resource" "bootstrap_ansible" {
       ]
     }
 
+    provisioner "file" {
+      source      = "ansible/"
+      destination = "/tmp/ansible"
+    }
+
+    provisioner "file" {
+      source      = "consul/"
+      destination = "/tmp/consul"
+    }
+/*
     provisioner "file" {
       source      = "ansible/hosts"
       destination = "/tmp/hosts"
@@ -192,16 +209,24 @@ resource "null_resource" "bootstrap_ansible" {
     provisioner "file" {
       source      = "ansible/bootstrap-docker.yml"
       destination = "/tmp/bootstrap-docker.yml"
-    }
+    }*/
 
     provisioner "remote-exec" {
       inline = [
-        "sudo cp /tmp/hosts /etc/ansible/hosts",
-        "sudo cp /tmp/bootstrap-docker.yml ~/bootstrap-docker.yml",
-        "sudo cp /tmp/ansible.cfg /etc/ansible/ansible.cfg",
-        "sudo rm /tmp/hosts",
-        "sudo rm /tmp/ansible.cfg",
-        "sudo rm /tmp/bootstrap-docker.yml"
+       # "sudo mkdir -p ~/consul-storage",
+        
+        "sudo mkdir -p /etc/ansible/",
+        "sudo cp /tmp/ansible/hosts /etc/ansible/hosts",
+        "sudo cp /tmp/ansible/ansible.cfg /etc/ansible/ansible.cfg",
+        "sudo rm -rf /tmp/ansible",
+
+        "sudo mkdir -p ~/consul",
+        "sudo cp /tmp/consul/*.hcl ~/consul",
+        "sudo rm /tmp/consul/*.hcl",
+
+        "sudo mkdir -p ~/consul-build",
+        "sudo cp -R /tmp/consul/* ~/consul-build",
+        "sudo rm -rf /tmp/consul"
         ]
     }
 
@@ -215,7 +240,7 @@ resource "null_resource" "bootstrap_docker" {
   connection {
       type        = "ssh"
       user        = azurerm_linux_virtual_machine.my_terraform_vm.admin_username
-      private_key = tls_private_key.example_ssh.private_key_pem #"${file("rajesh.pem")}"
+      private_key = tls_private_key.example_ssh.private_key_pem #"${file("me.pem")}"
       host        = azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address
     }
     provisioner "remote-exec" {
