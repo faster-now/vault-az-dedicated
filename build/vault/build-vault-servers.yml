@@ -1,0 +1,119 @@
+---
+- hosts: all
+  vars:
+    docker_network: vault_net
+    user: azureuser
+    consul_servers:
+      - consul-a
+      - consul-b
+      - consul-c
+    vault_servers: #use dict so a port number can be specified for each vault server to facilitate running multiple containers on a single host
+      vault-a: 8200
+      vault-b: 8800
+    consul_image_name: my-consul
+    vault_image_name: my-vault
+    temp_build_dir: /tmp/build/vault
+  gather_facts: no
+  remote_user: "{{user}}"
+  become: no
+  tasks:
+    - name: Check if the temp build directory exists
+      ansible.builtin.stat:
+        path: "{{ temp_build_dir }}"
+      register: dir_to_check
+   
+    - block: #Only perform this block where the vault build dir actually exists
+      - name: Copy vault & consul client config files from temp build dir to persistant storage location (ready for Docker volume)
+        copy:
+          src: "{{ item.key }}"
+          dest: ~/vault/config/ #trailing / means directory will be created where doesnt already exist
+        with_fileglob:
+          - "{{ temp_build_dir }}/*.hcl"
+      - name: Delete temp build vault & consul config files
+        file:
+          state: absent
+          path: "{{ item.key }}"
+        with_fileglob:
+          - "{{ temp_build_dir }}/*.hcl"
+
+      - name: Copy vault build files to build dir
+        copy:
+          src: "{{ item.key }}"
+          dest: ~/vault-build/ #trailing / means directory will be created where doesnt already exist
+        with_fileglob:
+          - "{{ temp_build_dir }}/*"
+      - name: Delete temp build vault directory
+        file:
+          state: absent
+          path: "{{ temp_build_dir }}/"
+      when: dir_to_check.stat.isdir is defined and dir_to_check.stat.isdir
+
+    - name: Create persistent storage directory for Vault servers Consul data (ready for Docker volume)
+      file:
+        path: "~/vault/consul-storage/{{item.key}}"
+        state: directory
+        owner: "{{user}}"
+        group: "{{user}}"
+        mode: 0777
+      with_dict: "{{ vault_servers }}"
+
+    - name: Create persistent storage directory for Vault audit logs (ready for Docker volume)
+      file:
+        path: "~/vault/audit-logs/{{item.key}}"
+        state: directory
+        owner: "{{user}}"
+        group: "{{user}}"
+        mode: 0777
+      with_dict: "{{ vault_servers }}"
+
+    # - name: Create persistent storage directory for Vault config (ready for Docker volume)
+    #   file:
+    #     path: "~/vault/config/{{item}}"
+    #     state: directory
+    #     owner: "{{user}}"
+    #     group: "{{user}}"
+    #     mode: 0775
+    #   loop: "{{vault_servers}}"
+
+    - name: Build a Vault image
+      docker_image:
+        build:
+          path: ~/vault-build #Dockerfile for Vault build should be in user dir/vault-build subfolder
+        name: "{{vault_image_name}}"
+        tag: v1
+        force_source: yes
+        #push: yes
+        source: build
+      #delegate_to: 127.0.0.1
+      #become: no
+
+    #Docker network should already exist from Consul server layer provisioning prior to this but will be created here if not already
+    - name: Create a docker network
+      docker_network:
+        name: "{{ docker_network }}"
+    
+    - name: Now create a Vault Docker Container from the image
+      docker_container:
+        name: "{{ item.key }}"
+        image: "{{vault_image_name}}:v1"
+        state: started
+        restart_policy: unless-stopped
+        capabilities:
+          - IPC_LOCK
+        memory: 400m
+        memory_swap: 2g
+        networks:
+          - name: "{{ docker_network }}"
+        ports: #TODO needs updated to account for load balancer and potentially different port number exposed for each docker container
+          - "{{ item.value }}:{{ item.value }}"
+    #      - "443:8200"
+    #      - "7300:7300"
+    #      - "7301:7301"
+        volumes:
+          - "~/vault/config/{{item.key}}-consul.hcl:/etc/consul/consul.hcl"
+          - "~/vault/config/{{item.key}}.hcl:/etc/vault/vault.hcl"
+          - "~/vault/consul-storage/{{item.key}}/:/opt/consul-storage"
+          - "~/vault/audit-logs/{{item.key}}/:/opt/vault"
+          # - /opt/test-static/nginx/ssl/:/etc/nginx/ssl
+          # - /opt/test-static/public/:/opt/test-static/public
+      with_dict: "{{ vault_servers }}"

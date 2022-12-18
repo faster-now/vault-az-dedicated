@@ -50,6 +50,8 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
+  #TODO Need to create new rule for 443 traffic as well as creating load balancer (then how to update pool members, same host different ports)
+
   /* Considered this to enable Docker connection by TF but decided not to
     security_rule {
     name                       = "SSH"
@@ -173,10 +175,9 @@ resource "null_resource" "bootstrap_ansible" {
         "pip3 install docker",
         "sudo gpasswd -a $USER docker",
         #"sudo newgrp docker",
-        "sudo mkdir -p /tmp/ansible/",
-        "sudo chmod 777 /tmp/ansible",
-        "sudo mkdir -p /tmp/consul/",
-        "sudo chmod 777 /tmp/consul",
+        "sudo mkdir -p /tmp/build/",
+        "sudo chmod 777 /tmp/build",
+
         "sudo chmod 400 ~/az-ssh-priv.key"
         #"pip3 install ansible[azure]"
         /*"sudo amazon-linux-extras install ansible2 -y",
@@ -187,15 +188,15 @@ resource "null_resource" "bootstrap_ansible" {
     }
 
     provisioner "file" {
-      source      = "ansible/"
-      destination = "/tmp/ansible"
+      source      = "build/"
+      destination = "/tmp/build"
     }
 
-    provisioner "file" {
+   /* provisioner "file" {
       source      = "consul/"
       destination = "/tmp/consul"
     }
-/*
+
     provisioner "file" {
       source      = "ansible/hosts"
       destination = "/tmp/hosts"
@@ -214,24 +215,17 @@ resource "null_resource" "bootstrap_ansible" {
     provisioner "remote-exec" {
       inline = [
        # "sudo mkdir -p ~/consul-storage",
-        
+        #files necessary for ansible to function
         "sudo mkdir -p /etc/ansible/",
-        "sudo cp /tmp/ansible/hosts /etc/ansible/hosts",
-        "sudo cp /tmp/ansible/ansible.cfg /etc/ansible/ansible.cfg",
-        "sudo rm -rf /tmp/ansible",
-
-        "sudo mkdir -p ~/consul",
-        "sudo cp /tmp/consul/*.hcl ~/consul",
-        "sudo rm /tmp/consul/*.hcl",
-
-        "sudo mkdir -p ~/consul-build",
-        "sudo cp -R /tmp/consul/* ~/consul-build",
-        "sudo rm -rf /tmp/consul"
+        "sudo cp /tmp/build/ansible/hosts /etc/ansible/hosts",
+        "sudo cp /tmp/build/ansible/ansible.cfg /etc/ansible/ansible.cfg",
+        "sudo rm -rf /tmp/build/ansible",
         ]
     }
 
     depends_on = [
-      azurerm_linux_virtual_machine.my_terraform_vm
+      azurerm_linux_virtual_machine.my_terraform_vm,
+      null_resource.bootstrap_docker
     ]
     triggers = {ip=azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address}
 }
@@ -264,8 +258,7 @@ resource "null_resource" "bootstrap_docker" {
     }
 
     depends_on = [
-      azurerm_linux_virtual_machine.my_terraform_vm,
-      null_resource.bootstrap_ansible
+      azurerm_linux_virtual_machine.my_terraform_vm
     ]
     triggers = {ip=azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address}
 }
