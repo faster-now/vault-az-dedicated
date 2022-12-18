@@ -10,6 +10,10 @@
     vault_secret_threshold: 2
     vault_tls_disable: true
     vault_port: 8200
+
+    vault_root_token_file: "~/vault/root-token.txt"
+    vault_root_token: "{{ lookup('file', '~/vault/root-token.txt', errors='ignore') }}" #if already initialised root token may exist in file so read it in so that audit check can be done
+
   gather_facts: no
 
   pre_tasks:
@@ -66,8 +70,8 @@
       
       - name: Write root token to file
         copy:
-          content: "Root Token: {{ vault_root_token }}"
-          dest: "~/vault/root-token.txt"
+          content: "{{ vault_root_token }}"
+          dest: "{{ vault_root_token_file }}"
         delegate_to: localhost
 
       no_log: false
@@ -100,3 +104,37 @@
         - vault_health_response.status == 503
         - vault_health_response.status != 501
         - vault_keys is defined
+
+    - name: Check if file audit is enabled
+      uri:
+        url: "{{ vault_tls_disable | ternary('http', 'https') }}://{{ inventory_hostname }}:{{ vault_port }}/v1/sys/audit"
+        headers: 
+          X-Vault-Token: "{{ vault_root_token }}"
+        validate_certs: "{{ tls_skip_verify | ternary('false', 'true') }}"
+        status_code: 200
+        return_content: yes
+      register: file_audit_response
+      run_once: true  
+      when:
+        - vault_root_token is defined
+        - vault_root_token|length > 0
+
+    - name: Enable audit to file/disk
+      uri:
+        url: "{{ vault_tls_disable | ternary('http', 'https') }}://{{ inventory_hostname }}:{{ vault_port }}/v1/sys/audit/file"
+        headers: 
+          X-Vault-Token: "{{ vault_root_token }}"
+        body:
+          type: file
+          options:
+            file_path: /opt/vault/audit.log
+        body_format: json
+        method: PUT
+        validate_certs: "{{ tls_skip_verify | ternary('false', 'true') }}"
+        status_code: 200,204
+      register: enable_file_audit
+      run_once: true
+      when:
+        - file_audit_response.status == 200
+        - file_audit_response.json.data|length == 0
+        
