@@ -2,6 +2,22 @@ resource "random_pet" "rg_name" {
   prefix = var.resource_group_name_prefix
 }
 
+resource "random_id" "role-id" {
+  byte_length = 16
+}
+
+output "role-id" {
+  value = random_id.role-id.id
+}
+
+resource "random_id" "secret-id" {
+  byte_length = 16
+}
+
+output "secret-id" {
+  value = random_id.secret-id.id
+}
+
 resource "azurerm_resource_group" "rg" {
   location = var.resource_group_location
   name     = random_pet.rg_name.id
@@ -44,9 +60,20 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
     priority                   = 1001
     direction                  = "Inbound"
     access                     = "Allow"
-    protocol                   = "Tcp"
+    protocol                   = "TCP"
     source_port_range          = "*"
     destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+  security_rule {
+    name                       = "Vault"
+    priority                   = 1011
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "TCP"
+    source_port_range          = "*"
+    destination_port_range     = "8200"
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
@@ -192,6 +219,16 @@ resource "null_resource" "bootstrap_ansible" {
       destination = "/tmp/build"
     }
 
+    provisioner "file" {
+      content      = random_id.secret-id.id
+      destination = "~/secret-id.txt"
+    }
+    
+    provisioner "file" {
+      content      = random_id.role-id.id
+      destination = "~/role-id.txt"
+    }
+
    /* provisioner "file" {
       source      = "consul/"
       destination = "/tmp/consul"
@@ -219,7 +256,18 @@ resource "null_resource" "bootstrap_ansible" {
         "sudo mkdir -p /etc/ansible/",
         "sudo cp /tmp/build/ansible/hosts /etc/ansible/hosts",
         "sudo cp /tmp/build/ansible/ansible.cfg /etc/ansible/ansible.cfg",
+        "sudo cp /tmp/build/ansible/download-build-pack.yml ~/download-build-pack.yml",
         "sudo rm -rf /tmp/build/ansible",
+        ]
+    }
+
+    provisioner "remote-exec" {
+      inline = [
+       # "sudo mkdir -p ~/consul-storage",
+        #files necessary for ansible to function
+        "ansible-playbook ~/download-build-pack.yml",
+        "cd ~/ansible",
+        "ansible-playbook -i inventory build-all.yml"
         ]
     }
 

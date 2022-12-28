@@ -22,6 +22,9 @@ backend "remote" {
       source = "hashicorp/tls"
       version = "~>4.0"
     }
+    # tfe = {
+    #   version = "~> 0.40.0"
+    # }
    /* docker = {
       source  = "kreuzwerker/docker"
       version = "~> 2.23.1"
@@ -32,6 +35,11 @@ backend "remote" {
 provider "azurerm" {
   features {}
 }
+
+# provider "tfe" {
+#   #hostname = var.hostname
+#   #token    = var.token
+# }
 
 //provider "docker" {
  // host = "tcp://172.173.189.172:2375"

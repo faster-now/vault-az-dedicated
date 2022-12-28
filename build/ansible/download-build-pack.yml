@@ -1,0 +1,16 @@
+---
+- hosts: all
+  vars:
+    base_dir: "~/ansible"
+    user: azureuser
+  
+  gather_facts: no
+  remote_user: "{{user}}"
+  become: no
+
+  tasks:
+    - name: Pull down all the required ansible, app config and docker files to build the stack
+      ansible.builtin.git:
+        repo: 'https://github.com/faster-now/hashi-vault.git'
+        dest: "{{ base_dir }}"
+        force: true
