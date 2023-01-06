@@ -74,7 +74,18 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
     protocol                   = "TCP"
     source_port_range          = "*"
     destination_port_range     = "8200"
-    source_address_prefix      = "*"
+    source_address_prefix      = "84.64.119.55/32"
+    destination_address_prefix = "*"
+  }
+  security_rule {
+    name                       = "VaultLB"
+    priority                   = 1021
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "TCP"
+    source_port_range          = "*"
+    destination_port_range     = "443"
+    source_address_prefix      = "84.64.119.55/32"
     destination_address_prefix = "*"
   }
   #TODO Need to create new rule for 443 traffic as well as creating load balancer (then how to update pool members, same host different ports)
@@ -92,6 +103,7 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
     destination_address_prefix = "*"
   }*/
 }
+
 
 # Create network interface
 resource "azurerm_network_interface" "my_terraform_nic" {
@@ -173,6 +185,52 @@ source_image_reference {
     storage_account_uri = azurerm_storage_account.my_storage_account.primary_blob_endpoint
   }*/
 }
+
+#####Create Load Balancer###############################
+resource "azurerm_lb" "vault_lb" {
+  name                = "TestLoadBalancer"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  sku                 = "Basic" #Basic is the default but make it explicit so its obvious this is in the free tier
+
+  frontend_ip_configuration {
+    name                 = "PublicIPAddress"
+    public_ip_address_id = azurerm_public_ip.lb_pub_ip.id
+  }
+}
+
+resource "azurerm_public_ip" "lb_pub_ip" {
+  name                = "PublicIPForLB"
+  domain_name_label   = "vault"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  allocation_method   = "Static"
+}
+
+resource "azurerm_lb_rule" "vault_lb_rule" {
+  name                           = "VaultRule"
+  loadbalancer_id                = azurerm_lb.vault_lb.id
+  resource_group_name            = azurerm_resource_group.rg.name
+  protocol                       = "Tcp"
+  frontend_port                  = 443
+  backend_port                   = 8200
+  frontend_ip_configuration_name = "PublicIPAddress"
+  backend_address_pool_ids        = [azurerm_lb_backend_address_pool.vault_server_pool.id]
+}
+
+resource "azurerm_lb_backend_address_pool" "vault_server_pool" {
+  loadbalancer_id = azurerm_lb.vault_lb.id
+  name            = "vault-backend-pool"
+}
+
+#Associate the public IP of the VM server with the backend address pool
+resource "azurerm_network_interface_backend_address_pool_association" "vault_pool_assoc" {
+  network_interface_id    = azurerm_network_interface.my_terraform_nic.id
+  ip_configuration_name   = azurerm_network_interface.my_terraform_nic.ip_configuration.0.name
+  backend_address_pool_id = azurerm_lb_backend_address_pool.vault_server_pool.id
+
+}
+############################################################
 
 resource "null_resource" "bootstrap_ansible" {
   connection {
