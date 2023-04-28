@@ -49,6 +49,13 @@ resource "azurerm_public_ip" "my_terraform_public_ip" {
   availability_zone   = "No-Zone"
 }
 
+locals {
+  my_local_ip = ["81.79.213.29/32"]
+  tf_cloud_notification_ips = ["52.86.200.106/32","52.86.201.227/32","52.70.186.109/32","44.236.246.186/32","54.185.161.84/32","44.238.78.236/32"]
+  allowed_ips = ["*"]
+  #allowed_ips = setunion(local.my_local_ip, local.tf_cloud_notification_ips)
+}
+
 # Create Network Security Group and rule
 resource "azurerm_network_security_group" "my_terraform_nsg" {
   name                = "myNetworkSecurityGroup"
@@ -74,7 +81,20 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
     protocol                   = "TCP"
     source_port_range          = "*"
     destination_port_range     = "8200"
-    source_address_prefix      = "84.64.119.55/32"
+    #source_address_prefixes      = local.allowed_ips
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+  security_rule {
+    name                       = "Vault-b"
+    priority                   = 1031
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "TCP"
+    source_port_range          = "*"
+    destination_port_range     = "8800"
+    #source_address_prefixes      = local.allowed_ips
+    source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
   security_rule {
@@ -85,7 +105,22 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
     protocol                   = "TCP"
     source_port_range          = "*"
     destination_port_range     = "443"
-    source_address_prefix      = "84.64.119.55/32"
+    #source_address_prefixes    = local.allowed_ips
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  /**Temporary only for allowing generation of vault.smartec.cc certificate via certbot and LetsEncrypt*/
+  security_rule {
+    name                       = "Vault"
+    priority                   = 1041
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "TCP"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    #source_address_prefixes      = local.allowed_ips
+    source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
   #TODO Need to create new rule for 443 traffic as well as creating load balancer (then how to update pool members, same host different ports)
@@ -204,7 +239,8 @@ resource "azurerm_public_ip" "lb_pub_ip" {
   domain_name_label   = "vault"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  allocation_method   = "Static"
+  allocation_method   = "Dynamic"
+  availability_zone   = "No-Zone"
 }
 
 resource "azurerm_lb_rule" "vault_lb_rule" {
