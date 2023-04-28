@@ -112,7 +112,7 @@ resource "azurerm_network_security_group" "my_terraform_nsg" {
 
   /**Temporary only for allowing generation of vault.smartec.cc certificate via certbot and LetsEncrypt*/
   security_rule {
-    name                       = "Vault"
+    name                       = "Temp-Website"
     priority                   = 1041
     direction                  = "Inbound"
     access                     = "Allow"
