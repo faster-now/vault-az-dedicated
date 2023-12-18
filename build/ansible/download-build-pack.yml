@@ -1,5 +1,5 @@
 ---
-- hosts: all
+- hosts: vault-a
   vars:
     base_dir: "~/ansible"
     user: azureuser

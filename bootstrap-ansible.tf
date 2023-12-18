@@ -56,12 +56,11 @@ resource "null_resource" "bootstrap_ansible" {
         "sudo mkdir -p /etc/ansible/",
         "sudo cp /tmp/build/hosts /etc/ansible/hosts",
         "sudo cp /tmp/build/ansible/ansible.cfg /etc/ansible/ansible.cfg",
+        "sudo cp /tmp/build/ansible/config ~/.ssh/config",
         "sudo cp /tmp/build/ansible/download-build-pack.yml ~/download-build-pack.yml",
-        "sudo rm -rf /tmp/build/ansible",
+        "sudo rm -rf /tmp/build/",
         ]
     }
-
-
 
     provisioner "remote-exec" {
       inline = [
@@ -74,5 +73,5 @@ resource "null_resource" "bootstrap_ansible" {
         ]
     }
 
-  triggers = {ip=values(module.vault_hosts_public)[0].public_ip_address,again=true}
+  triggers = {ip=values(module.vault_hosts_public)[0].public_ip_address}
 }
