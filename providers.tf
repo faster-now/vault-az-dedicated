@@ -4,19 +4,19 @@ backend "remote" {
     organization = "vault-c"
 
     workspaces {
-      name = "vault-dev-az"
+      name = "vault-az-dedicated"
     }
   }
-  required_version = ">=0.12"
+  #required_version = ">=0.12"
 
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~>2.0"
+      version = "~>3.85"
     }
     random = {
       source  = "hashicorp/random"
-      version = "~>3.0"
+      version = "~>3.6"
     }
     tls = {
       source = "hashicorp/tls"

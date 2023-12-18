@@ -2,21 +2,22 @@ resource "random_pet" "rg_name" {
   prefix = var.resource_group_name_prefix
 }
 
-resource "random_id" "role-id" {
-  byte_length = 16
-}
+#Old AppRole method below. Should be replaced with JWT so no cred exchange like below
+# resource "random_id" "role-id" {
+#   byte_length = 16
+# }
 
-output "role-id" {
-  value = random_id.role-id.id
-}
+# output "role-id" {
+#   value = random_id.role-id.id
+# }
 
-resource "random_id" "secret-id" {
-  byte_length = 16
-}
+# resource "random_id" "secret-id" {
+#   byte_length = 16
+# }
 
-output "secret-id" {
-  value = random_id.secret-id.id
-}
+# output "secret-id" {
+#   value = random_id.secret-id.id
+# }
 
 resource "azurerm_resource_group" "rg" {
   location = var.resource_group_location
@@ -39,14 +40,14 @@ resource "azurerm_subnet" "my_terraform_subnet" {
   address_prefixes     = ["10.0.1.0/24"]
 }
 
-# Create public IPs
-resource "azurerm_public_ip" "my_terraform_public_ip" {
-  name                = "myPublicIP"
+# Create public IP for Vault server
+resource "azurerm_public_ip" "vault_public_ip" {
+  name                = "publicVaultIP"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Dynamic"
   #zones               = ["1"]
-  availability_zone   = "No-Zone"
+  #availability_zone   = "No-Zone"
 }
 
 locals {
@@ -54,110 +55,6 @@ locals {
   tf_cloud_notification_ips = ["52.86.200.106/32","52.86.201.227/32","52.70.186.109/32","44.236.246.186/32","54.185.161.84/32","44.238.78.236/32"]
   allowed_ips = ["*"]
   #allowed_ips = setunion(local.my_local_ip, local.tf_cloud_notification_ips)
-}
-
-# Create Network Security Group and rule
-resource "azurerm_network_security_group" "my_terraform_nsg" {
-  name                = "myNetworkSecurityGroup"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  security_rule {
-    name                       = "SSH"
-    priority                   = 1001
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "TCP"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-  security_rule {
-    name                       = "Vault"
-    priority                   = 1011
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "TCP"
-    source_port_range          = "*"
-    destination_port_range     = "8200"
-    #source_address_prefixes      = local.allowed_ips
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-  security_rule {
-    name                       = "Vault-b"
-    priority                   = 1031
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "TCP"
-    source_port_range          = "*"
-    destination_port_range     = "8800"
-    #source_address_prefixes      = local.allowed_ips
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-  security_rule {
-    name                       = "VaultLB"
-    priority                   = 1021
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "TCP"
-    source_port_range          = "*"
-    destination_port_range     = "443"
-    #source_address_prefixes    = local.allowed_ips
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  /**Temporary only for allowing generation of vault.smartec.cc certificate via certbot and LetsEncrypt*/
-  security_rule {
-    name                       = "Temp-Website"
-    priority                   = 1041
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "TCP"
-    source_port_range          = "*"
-    destination_port_range     = "80"
-    #source_address_prefixes      = local.allowed_ips
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-  #TODO Need to create new rule for 443 traffic as well as creating load balancer (then how to update pool members, same host different ports)
-
-  /* Considered this to enable Docker connection by TF but decided not to
-    security_rule {
-    name                       = "SSH"
-    priority                   = 1001
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "2375"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }*/
-}
-
-
-# Create network interface
-resource "azurerm_network_interface" "my_terraform_nic" {
-  name                = "myNIC"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  ip_configuration {
-    name                          = "my_nic_configuration"
-    subnet_id                     = azurerm_subnet.my_terraform_subnet.id
-    private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = azurerm_public_ip.my_terraform_public_ip.id
-  }
-}
-
-# Connect the security group to the network interface
-resource "azurerm_network_interface_security_group_association" "example" {
-  network_interface_id      = azurerm_network_interface.my_terraform_nic.id
-  network_security_group_id = azurerm_network_security_group.my_terraform_nsg.id
 }
 
 # Generate random text for a unique storage account name
@@ -180,46 +77,13 @@ resource "azurerm_storage_account" "my_storage_account" {
   account_replication_type = "LRS"
 }*/
 
-# Create (and display) an SSH key
-resource "tls_private_key" "example_ssh" {
+# Create (and display) an SSH key. In the current config this is used for all hosts
+resource "tls_private_key" "ssh_allhosts" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-# Create virtual machine
-resource "azurerm_linux_virtual_machine" "my_terraform_vm" {
-  name                  = "myVM"
-  location              = azurerm_resource_group.rg.location
-  resource_group_name   = azurerm_resource_group.rg.name
-  network_interface_ids = [azurerm_network_interface.my_terraform_nic.id]
-  size                  = "Standard_B1s"
-  computer_name         = "myvm"
-  admin_username        = "azureuser"
-  disable_password_authentication = true
 
-  os_disk {
-    name                 = "myOsDisk"
-    caching              = "ReadWrite"
-    storage_account_type = "Premium_LRS"
-    disk_size_gb         = 64
-  }
-
-source_image_reference {
-    publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-focal"
-    sku       = "20_04-lts-gen2"
-    version   = "latest"
-  }
-
-  admin_ssh_key {
-    username   = "azureuser"
-    public_key = tls_private_key.example_ssh.public_key_openssh
-  }
-
-  /*boot_diagnostics {
-    storage_account_uri = azurerm_storage_account.my_storage_account.primary_blob_endpoint
-  }*/
-}
 
 #####Create Load Balancer###############################
 resource "azurerm_lb" "vault_lb" {
@@ -240,17 +104,17 @@ resource "azurerm_public_ip" "lb_pub_ip" {
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Dynamic"
-  availability_zone   = "No-Zone"
+  #availability_zone   = "No-Zone"
 }
 
 resource "azurerm_lb_rule" "vault_lb_rule" {
-  name                           = "VaultRule"
-  loadbalancer_id                = azurerm_lb.vault_lb.id
-  resource_group_name            = azurerm_resource_group.rg.name
-  protocol                       = "Tcp"
-  frontend_port                  = 443
-  backend_port                   = 8200
-  frontend_ip_configuration_name = "PublicIPAddress"
+  name                            = "VaultRule"
+  loadbalancer_id                 = azurerm_lb.vault_lb.id
+  protocol                        = "Tcp"
+  frontend_port                   = 443
+  backend_port                    = 8200
+  frontend_ip_configuration_name  = "PublicIPAddress"
+  #resource_group_name             = azurerm_resource_group.rg.name
   backend_address_pool_ids        = [azurerm_lb_backend_address_pool.vault_server_pool.id]
 }
 
@@ -259,162 +123,51 @@ resource "azurerm_lb_backend_address_pool" "vault_server_pool" {
   name            = "vault-backend-pool"
 }
 
-#Associate the public IP of the VM server with the backend address pool
-resource "azurerm_network_interface_backend_address_pool_association" "vault_pool_assoc" {
-  network_interface_id    = azurerm_network_interface.my_terraform_nic.id
-  ip_configuration_name   = azurerm_network_interface.my_terraform_nic.ip_configuration.0.name
+locals {
+  vault_hosts_public = ["vault-a"]
+  #vault_hosts = ["vault-b","vault-c"]
+  vault_hosts = ["vault-b"]
+  #consul_hosts = ["consul-a", "consul-b", "consul-c", "consul-d", "consul-e"]
+  consul_hosts = ["consul-a", "consul-b"]
+}
+
+module "vault_hosts" {
+  for_each = toset(local.vault_hosts)
+  source = "./modules/cluster"
+  vault = true
+  hostname = each.value
+  public_key_openssh = tls_private_key.ssh_allhosts.public_key_openssh
+  network_security_group_id = azurerm_network_security_group.my_terraform_nsg.id
   backend_address_pool_id = azurerm_lb_backend_address_pool.vault_server_pool.id
-
-}
-############################################################
-
-resource "null_resource" "bootstrap_ansible" {
-  connection {
-      type        = "ssh"
-      user        = azurerm_linux_virtual_machine.my_terraform_vm.admin_username
-      private_key = tls_private_key.example_ssh.private_key_pem #"${file("rajesh.pem")}"
-      host        = azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address
-    }
-
-    provisioner "remote-exec" { #first try deleting private key incase it already exists to avoid scp permission denied error when trying to create it below
-      inline = [
-        "sudo rm -rf ~/az-ssh-priv.key | true" #try removing the file but dont give an error message and fail the plan if the file doesnt exist
-      ]
-    }
-
-    provisioner "file" {
-      content      = tls_private_key.example_ssh.private_key_pem
-      destination = "~/az-ssh-priv.key"
-    }
-
-    provisioner "remote-exec" {
-      inline = [
-        "sudo apt-get update",
-        "sudo apt-get install -y python3-pip",
-        "sudo pip3 install --upgrade pip",
-        "pip3 install ansible",
-        "pip3 install docker",
-        "sudo gpasswd -a $USER docker",
-        #"sudo newgrp docker",
-        "sudo mkdir -p /tmp/build/",
-        "sudo chmod 777 /tmp/build",
-
-        "sudo chmod 400 ~/az-ssh-priv.key"
-        #"pip3 install ansible[azure]"
-        /*"sudo amazon-linux-extras install ansible2 -y",
-        "sudo yum install git -y",
-        "git clone https://github.com/devops-school/ansible-hello-world-role /tmp/ans_ws",
-        "ansible-playbook /tmp/ans_ws/site.yaml"*/
-      ]
-    }
-
-    provisioner "file" {
-      source      = "build/"
-      destination = "/tmp/build"
-    }
-
-    provisioner "file" {
-      content      = random_id.secret-id.id
-      destination = "~/secret-id.txt"
-    }
-    
-    provisioner "file" {
-      content      = random_id.role-id.id
-      destination = "~/role-id.txt"
-    }
-
-   /* provisioner "file" {
-      source      = "consul/"
-      destination = "/tmp/consul"
-    }
-
-    provisioner "file" {
-      source      = "ansible/hosts"
-      destination = "/tmp/hosts"
-    }
-
-    provisioner "file" {
-      source      = "ansible/ansible.cfg"
-      destination = "/tmp/ansible.cfg"
-    }
-
-    provisioner "file" {
-      source      = "ansible/bootstrap-docker.yml"
-      destination = "/tmp/bootstrap-docker.yml"
-    }*/
-
-    provisioner "remote-exec" {
-      inline = [
-       # "sudo mkdir -p ~/consul-storage",
-        #files necessary for ansible to function
-        "sudo mkdir -p /etc/ansible/",
-        "sudo cp /tmp/build/ansible/hosts /etc/ansible/hosts",
-        "sudo cp /tmp/build/ansible/ansible.cfg /etc/ansible/ansible.cfg",
-        "sudo cp /tmp/build/ansible/download-build-pack.yml ~/download-build-pack.yml",
-        "sudo rm -rf /tmp/build/ansible",
-        ]
-    }
-
-    provisioner "remote-exec" {
-      inline = [
-       # "sudo mkdir -p ~/consul-storage",
-        #files necessary for ansible to function
-        "ansible-playbook ~/download-build-pack.yml",
-        "cd ~/ansible",
-        "ansible-playbook -i inventory build-all.yml"
-        ]
-    }
-
-    depends_on = [
-      azurerm_linux_virtual_machine.my_terraform_vm,
-      null_resource.bootstrap_docker
-    ]
-    triggers = {ip=azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address}
+  subnet_id = azurerm_subnet.my_terraform_subnet.id
+  resource_group_location = azurerm_resource_group.rg.location
+  resource_group_name  = azurerm_resource_group.rg.name
 }
 
-resource "null_resource" "bootstrap_docker" {
-  connection {
-      type        = "ssh"
-      user        = azurerm_linux_virtual_machine.my_terraform_vm.admin_username
-      private_key = tls_private_key.example_ssh.private_key_pem #"${file("me.pem")}"
-      host        = azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address
-    }
-    provisioner "remote-exec" {
-      inline = [
-        "sudo apt-get update",
-        "sudo apt-get install -y ca-certificates",
-        "sudo apt-get install -y curl",
-        "sudo apt-get install -y gnupg",
-        "sudo apt-get install -y lsb-release",
-        "sudo mkdir -p /etc/apt/keyrings",
-        "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor --batch --yes -o /etc/apt/keyrings/docker.gpg",
-        "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable\" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null",
-        "sudo apt-get update",
-        "sudo apt-get -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin"
-        #"pip3 install ansible[azure]"
-        /*"sudo amazon-linux-extras install ansible2 -y",
-        "sudo yum install git -y",
-        "git clone https://github.com/devops-school/ansible-hello-world-role /tmp/ans_ws",
-        "ansible-playbook /tmp/ans_ws/site.yaml"*/
-      ]
-    }
-
-    depends_on = [
-      azurerm_linux_virtual_machine.my_terraform_vm
-    ]
-    triggers = {ip=azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address}
+module "vault_hosts_public" {
+  for_each = toset(local.vault_hosts_public)
+  source = "./modules/cluster"
+  vault = true
+  hostname = each.value
+  public_key_openssh = tls_private_key.ssh_allhosts.public_key_openssh
+  network_security_group_id = azurerm_network_security_group.my_terraform_nsg.id
+  backend_address_pool_id = azurerm_lb_backend_address_pool.vault_server_pool.id
+  subnet_id = azurerm_subnet.my_terraform_subnet.id
+  resource_group_location = azurerm_resource_group.rg.location
+  resource_group_name  = azurerm_resource_group.rg.name
+  public_ip_address_id = azurerm_public_ip.vault_public_ip.id
+  ssh_priv_key = tls_private_key.ssh_allhosts.private_key_pem #Public host with Ansible needs private key for authenticating to other hosts
 }
 
-/*resource "docker_network" "vault_network" {
-  name = "vault_network"
+module "consul_hosts" {
+  for_each = toset(local.consul_hosts)
+  source = "./modules/cluster"
+  vault = false
+  hostname = each.value
+  public_key_openssh = tls_private_key.ssh_allhosts.public_key_openssh
+  network_security_group_id = azurerm_network_security_group.my_terraform_nsg.id
+  backend_address_pool_id = azurerm_lb_backend_address_pool.vault_server_pool.id
+  subnet_id = azurerm_subnet.my_terraform_subnet.id
+  resource_group_location = azurerm_resource_group.rg.location
+  resource_group_name  = azurerm_resource_group.rg.name
 }
-
-module "provision_consul_container" {
-  source                  = "./modules/consul"
-  host_user               = azurerm_linux_virtual_machine.my_terraform_vm.admin_username
-  host_ssh_private_key    = tls_private_key.example_ssh.private_key_pem
-  host_ip_address         = azurerm_linux_virtual_machine.my_terraform_vm.public_ip_address
-  network                 = docker_network.vault_network.name
-
-
-} */

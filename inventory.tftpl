@@ -1,0 +1,9 @@
+[vault]
+%{ for vault_host in vault_hosts ~}
+${vault_host}
+%{ endfor ~}
+
+[consul]
+%{ for consul_host in consul_hosts ~}
+${consul_host}
+%{ endfor ~}
