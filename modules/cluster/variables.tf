@@ -61,6 +61,12 @@ variable "resource_group_name" {
     description = "The name of the resource group"
 }
 
+variable "availability_set_id" {
+    type = string
+    default = null
+    description = "The id of the availability zone to place the VM"
+}
+
 variable "public_ip_address_id" {
     type = string
     default = null

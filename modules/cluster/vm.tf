@@ -1,13 +1,14 @@
 # Create virtual machine
 resource "azurerm_linux_virtual_machine" "vm" {
-  name                  = var.hostname
-  location              = var.resource_group_location
-  resource_group_name   = var.resource_group_name
-  network_interface_ids = [azurerm_network_interface.nic.id]
-  size                  = "Standard_B1s"
-  computer_name         = var.hostname
-  admin_username        = var.username
+  name                            = var.hostname
+  location                        = var.resource_group_location
+  resource_group_name             = var.resource_group_name
+  network_interface_ids           = [azurerm_network_interface.nic.id]
+  size                            = "Standard_B1s"
+  computer_name                   = var.hostname
+  admin_username                  = var.username
   disable_password_authentication = true
+  availability_set_id             = var.availability_set_id
 
   os_disk {
     name                 = "${var.hostname}-disk"

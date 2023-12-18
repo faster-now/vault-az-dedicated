@@ -16,7 +16,7 @@ resource "null_resource" "bootstrap_ansible" {
 
     provisioner "file" {
         content      = tls_private_key.ssh_allhosts.private_key_openssh
-        destination = "~/az-ssh-priv.key"
+        destination = "az-ssh-priv.key"
     }
 
     provisioner "remote-exec" {
@@ -44,32 +44,35 @@ resource "null_resource" "bootstrap_ansible" {
       destination = "/tmp/build"
     }
 
+    provisioner "file" {
+      content      = templatefile("${path.module}/inventory.tftpl", { consul_hosts = local.consul_hosts, vault_hosts = concat(local.vault_hosts, local.vault_hosts_public)})
+      destination = "/tmp/build/hosts"
+    }
+
     provisioner "remote-exec" {
       inline = [
        # "sudo mkdir -p ~/consul-storage",
         #files necessary for ansible to function
         "sudo mkdir -p /etc/ansible/",
-        #"sudo cp /tmp/build/ansible/hosts /etc/ansible/hosts",
+        "sudo cp /tmp/build/hosts /etc/ansible/hosts",
         "sudo cp /tmp/build/ansible/ansible.cfg /etc/ansible/ansible.cfg",
         "sudo cp /tmp/build/ansible/download-build-pack.yml ~/download-build-pack.yml",
         "sudo rm -rf /tmp/build/ansible",
         ]
     }
 
-    provisioner "file" {
-      source      = templatefile("${path.module}/inventory.tftpl", { consul_hosts = local.consul_hosts, vault_hosts = concat(local.vault_hosts, local.vault_hosts_public)})
-      destination = "/etc/ansible/hosts"
-    }
+
 
     provisioner "remote-exec" {
       inline = [
        # "sudo mkdir -p ~/consul-storage",
         #files necessary for ansible to function
+        "sudo mkdir -p ~/ansible/",
         "ansible-playbook ~/download-build-pack.yml",
         "cd ~/ansible",
         #"ansible-playbook -i inventory build-all.yml" #TODO commented kicking off the build until check infra layer is ok first
         ]
     }
 
-  triggers = {ip=values(module.vault_hosts_public)[0].public_ip_address}
+  triggers = {ip=values(module.vault_hosts_public)[0].public_ip_address,again=true}
 }

@@ -24,6 +24,13 @@ resource "azurerm_resource_group" "rg" {
   name     = random_pet.rg_name.id
 }
 
+#To allow to VMs to work behind basic LB they need to be in the same availability zone
+resource "azurerm_availability_set" "vault" {
+  name                = "vault-vms"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
 # Create virtual network
 resource "azurerm_virtual_network" "my_terraform_network" {
   name                = "myVnet"
@@ -142,6 +149,7 @@ module "vault_hosts" {
   subnet_id = azurerm_subnet.my_terraform_subnet.id
   resource_group_location = azurerm_resource_group.rg.location
   resource_group_name  = azurerm_resource_group.rg.name
+  availability_set_id = azurerm_availability_set.vault.id
 }
 
 module "vault_hosts_public" {
@@ -155,6 +163,7 @@ module "vault_hosts_public" {
   subnet_id = azurerm_subnet.my_terraform_subnet.id
   resource_group_location = azurerm_resource_group.rg.location
   resource_group_name  = azurerm_resource_group.rg.name
+  availability_set_id = azurerm_availability_set.vault.id
   public_ip_address_id = azurerm_public_ip.vault_public_ip.id
   ssh_priv_key = tls_private_key.ssh_allhosts.private_key_pem #Public host with Ansible needs private key for authenticating to other hosts
 }
