@@ -4,7 +4,7 @@ resource "null_resource" "bootstrap_python" {
       type        = "ssh"
       user        = azurerm_linux_virtual_machine.vm.admin_username
       private_key = var.ssh_priv_key #"${file("rajesh.pem")}"
-      host        = azurerm_linux_virtual_machine.vm.public_ip_address
+      host        = azurerm_linux_virtual_machine.vm.private_ip_address 
     }
 
     provisioner "remote-exec" {
