@@ -11,6 +11,6 @@
   tasks:
     - name: Pull down all the required ansible, app config and docker files to build the stack
       ansible.builtin.git:
-        repo: 'https://github.com/faster-now/hashi-vault.git'
+        repo: 'https://github.com/faster-now/ansible-bootstrap-vault.git'
         dest: "{{ base_dir }}"
         force: true

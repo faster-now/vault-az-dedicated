@@ -67,6 +67,7 @@ resource "null_resource" "bootstrap_ansible" {
        # "sudo mkdir -p ~/consul-storage",
         #files necessary for ansible to function
         "sudo mkdir -p ~/ansible/",
+        "sudo chown azureuser:azureuser ~/ansible",
         "ansible-playbook ~/download-build-pack.yml",
         "cd ~/ansible",
         #"ansible-playbook -i inventory build-all.yml" #TODO commented kicking off the build until check infra layer is ok first
