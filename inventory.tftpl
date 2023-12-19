@@ -7,3 +7,8 @@ ${vault_host}
 %{ for consul_host in consul_hosts ~}
 ${consul_host}
 %{ endfor ~}
+
+[ansible]
+%{ for ansible_host in ansible_hosts ~}
+${ansible_host}
+%{ endfor ~}

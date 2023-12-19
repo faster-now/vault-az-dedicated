@@ -45,7 +45,7 @@ resource "null_resource" "bootstrap_ansible" {
     }
 
     provisioner "file" {
-      content      = templatefile("${path.module}/inventory.tftpl", { consul_hosts = local.consul_hosts, vault_hosts = concat(local.vault_hosts, local.vault_hosts_public)})
+      content      = templatefile("${path.module}/inventory.tftpl", { consul_hosts = local.consul_hosts, vault_hosts = concat(local.vault_hosts, local.vault_hosts_public), ansible_hosts = local.vault_hosts_public})
       destination = "/tmp/build/hosts"
     }
 
