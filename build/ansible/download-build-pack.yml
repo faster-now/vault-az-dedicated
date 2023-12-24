@@ -1,11 +1,11 @@
 ---
-- hosts: vault-a
+- hosts: ansible
   vars:
     base_dir: "~/ansible"
-    user: azureuser
+    #user: "{{ user }}"
   
   gather_facts: no
-  remote_user: "{{user}}"
+  remote_user: "{{ user }}"
   become: no
 
   tasks:

@@ -12,3 +12,10 @@ ${consul_host}
 %{ for ansible_host in ansible_hosts ~}
 ${ansible_host}
 %{ endfor ~}
+
+[all:children]
+vault
+consul
+
+[all:vars]
+user=${username}

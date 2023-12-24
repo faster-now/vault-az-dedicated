@@ -45,7 +45,10 @@ resource "null_resource" "bootstrap_ansible" {
     }
 
     provisioner "file" {
-      content      = templatefile("${path.module}/inventory.tftpl", { consul_hosts = local.consul_hosts, vault_hosts = concat(local.vault_hosts, local.vault_hosts_public), ansible_hosts = local.vault_hosts_public})
+      content      = templatefile("${path.module}/inventory.tftpl", { consul_hosts = local.consul_hosts, 
+                                                                      vault_hosts = concat(local.vault_hosts, local.vault_hosts_public), 
+                                                                      ansible_hosts = local.vault_hosts_public
+                                                                      username = values(module.vault_hosts_public)[0].username})
       destination = "/tmp/build/hosts"
     }
 
@@ -67,7 +70,7 @@ resource "null_resource" "bootstrap_ansible" {
        # "sudo mkdir -p ~/consul-storage",
         #files necessary for ansible to function
         "sudo mkdir -p ~/ansible/",
-        "sudo chown azureuser:azureuser ~/ansible",
+        "sudo chown ${values(module.vault_hosts_public)[0].username}:${values(module.vault_hosts_public)[0].username} ~/ansible",
         "ansible-playbook ~/download-build-pack.yml",
         "cd ~/ansible",
         #"ansible-playbook -i inventory build-all.yml" #TODO commented kicking off the build until check infra layer is ok first
