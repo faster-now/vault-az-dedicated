@@ -78,5 +78,6 @@ resource "null_resource" "bootstrap_ansible" {
         ]
     }
 
-  triggers = {ip=values(module.vault_hosts_public)[0].public_ip_address}
+  #triggers = {ip=values(module.vault_hosts_public)[0].public_ip_address}
+  triggers = {username=values(module.vault_hosts_public)[0].username}
 }

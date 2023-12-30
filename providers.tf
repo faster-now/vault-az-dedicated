@@ -22,13 +22,13 @@ backend "remote" {
       source = "hashicorp/tls"
       version = "~>4.0"
     }
-    # tfe = {
-    #   version = "~> 0.40.0"
-    # }
-   /* docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 2.23.1"
-    } */
+    tfe = {
+      version = "~> 0.51.1"
+    }
+    remote = {
+      source = "tenstad/remote"
+      version = "~>0.1.2"
+    }
   }
 }
 
@@ -36,10 +36,12 @@ provider "azurerm" {
   features {}
 }
 
-# provider "tfe" {
-#   #hostname = var.hostname
-#   #token    = var.token
-# }
+provider "tfe" {
+}
+
+provider "remote" {
+  max_sessions = 2
+}
 
 //provider "docker" {
  // host = "tcp://172.173.189.172:2375"
