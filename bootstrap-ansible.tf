@@ -73,6 +73,7 @@ resource "null_resource" "bootstrap_ansible" {
         "sudo chown ${values(module.vault_hosts_public)[0].username}:${values(module.vault_hosts_public)[0].username} ~/ansible",
         "ansible-playbook ~/download-build-pack.yml",
         "cd ~/ansible",
+        "ansible-playbook build-all.yml",
         #"ansible-playbook -i inventory build-all.yml" #TODO commented kicking off the build until check infra layer is ok first
         ]
     }

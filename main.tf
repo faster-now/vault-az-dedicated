@@ -2,23 +2,6 @@ resource "random_pet" "rg_name" {
   prefix = var.resource_group_name_prefix
 }
 
-#Old AppRole method below. Should be replaced with JWT so no cred exchange like below
-# resource "random_id" "role-id" {
-#   byte_length = 16
-# }
-
-# output "role-id" {
-#   value = random_id.role-id.id
-# }
-
-# resource "random_id" "secret-id" {
-#   byte_length = 16
-# }
-
-# output "secret-id" {
-#   value = random_id.secret-id.id
-# }
-
 resource "azurerm_resource_group" "rg" {
   location = var.resource_group_location
   name     = random_pet.rg_name.id
