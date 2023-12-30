@@ -30,6 +30,14 @@ data "remote_file" "vault_issuer_ca" {
     }
 
   path = "/home/vault/certs/issuing_ca_b64.txt"
+
+  lifecycle {
+    # The EC2 instance will have an encrypted root volume.
+    postcondition {
+      condition     = null_resource.bootstrap_ansible.id != ""
+      error_message = "Ansible needs to create the issuing ca first before it can be accessed"
+    }
+  }
 }
 
 resource "tfe_workspace" "vault" {
