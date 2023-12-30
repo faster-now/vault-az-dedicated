@@ -71,9 +71,9 @@ resource "null_resource" "bootstrap_ansible" {
         #files necessary for ansible to function
         "sudo mkdir -p ~/ansible/",
         "sudo chown ${values(module.vault_hosts_public)[0].username}:${values(module.vault_hosts_public)[0].username} ~/ansible",
-        "ansible-playbook ~/download-build-pack.yml",
+        "/home/${values(module.vault_hosts_public)[0].username}/.local/bin/ansible-playbook ~/download-build-pack.yml",
         "cd ~/ansible",
-        "ansible-playbook build-all.yml",
+        "/home/${values(module.vault_hosts_public)[0].username}/.local/bin/ansible-playbook ~/ansible/build-all.yml",
         #"ansible-playbook -i inventory build-all.yml" #TODO commented kicking off the build until check infra layer is ok first
         ]
     }
