@@ -90,7 +90,7 @@ resource "azurerm_lb" "vault_lb" {
 
 resource "azurerm_public_ip" "lb_pub_ip" {
   name                = "PublicIPForLB"
-  domain_name_label   = "vaulth"
+  domain_name_label   = var.unique_dns_prefix
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Dynamic"
