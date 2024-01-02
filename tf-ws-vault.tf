@@ -29,7 +29,7 @@ data "remote_file" "vault_issuer_ca" {
       host        = values(module.vault_hosts_public)[0].public_ip_address
     }
 
-  path = "/home/vault/certs/issuing_ca_b64.txt"
+  path = "/home/vault/certs/issuing_ca_b64.txt" #base64 encoded version of the PEM issuing CA cert
 
   lifecycle {
     # The EC2 instance will have an encrypted root volume.
