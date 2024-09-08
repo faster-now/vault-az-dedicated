@@ -23,8 +23,7 @@ resource "null_resource" "bootstrap_ansible" {
         inline = [
             "sudo apt-get update",
             "sudo apt-get install -y python3-pip",
-            "sudo pip3 install --upgrade pip",
-            "pip3 install ansible",
+            "sudo apt install ansible",
         
             "sudo mkdir -p /tmp/build/",
             "sudo chmod 777 /tmp/build",
@@ -71,9 +70,9 @@ resource "null_resource" "bootstrap_ansible" {
         #files necessary for ansible to function
         "sudo mkdir -p ~/ansible/",
         "sudo chown ${values(module.vault_hosts_public)[0].username}:${values(module.vault_hosts_public)[0].username} ~/ansible",
-        "/home/${values(module.vault_hosts_public)[0].username}/.local/bin/ansible-playbook ~/download-build-pack.yml",
+        "/usr/bin/ansible-playbook ~/download-build-pack.yml",
         "cd ~/ansible",
-        "/home/${values(module.vault_hosts_public)[0].username}/.local/bin/ansible-playbook ~/ansible/build-all.yml",
+        "/usr/bin/ansible-playbook ~/ansible/build-all.yml",
         #"ansible-playbook -i inventory build-all.yml" #TODO commented kicking off the build until check infra layer is ok first
         ]
     }
