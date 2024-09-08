@@ -12,6 +12,7 @@ resource "azurerm_availability_set" "vault" {
   name                = "vault-vms"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
+  platform_fault_domain_count = 2 #required after changing locaiton to uksouth on 08/09/2024 as default of 3 doesnt work in that location
 }
 
 # Create virtual network
@@ -121,45 +122,45 @@ locals {
   consul_hosts = ["consul-a", "consul-b"]
 }
 
-module "vault_hosts" {
-  for_each = toset(local.vault_hosts)
-  source = "./modules/cluster"
-  vault = true
-  hostname = each.value
-  public_key_openssh = tls_private_key.ssh_allhosts.public_key_openssh
-  network_security_group_id = azurerm_network_security_group.my_terraform_nsg.id
-  backend_address_pool_id = azurerm_lb_backend_address_pool.vault_server_pool.id
-  subnet_id = azurerm_subnet.my_terraform_subnet.id
-  resource_group_location = azurerm_resource_group.rg.location
-  resource_group_name  = azurerm_resource_group.rg.name
-  availability_set_id = azurerm_availability_set.vault.id
-}
+# module "vault_hosts" {
+#   for_each = toset(local.vault_hosts)
+#   source = "./modules/cluster"
+#   vault = true
+#   hostname = each.value
+#   public_key_openssh = tls_private_key.ssh_allhosts.public_key_openssh
+#   network_security_group_id = azurerm_network_security_group.my_terraform_nsg.id
+#   backend_address_pool_id = azurerm_lb_backend_address_pool.vault_server_pool.id
+#   subnet_id = azurerm_subnet.my_terraform_subnet.id
+#   resource_group_location = azurerm_resource_group.rg.location
+#   resource_group_name  = azurerm_resource_group.rg.name
+#   availability_set_id = azurerm_availability_set.vault.id
+# }
 
-module "vault_hosts_public" {
-  for_each = toset(local.vault_hosts_public)
-  source = "./modules/cluster"
-  vault = true
-  hostname = each.value
-  public_key_openssh = tls_private_key.ssh_allhosts.public_key_openssh
-  network_security_group_id = azurerm_network_security_group.my_terraform_nsg.id
-  backend_address_pool_id = azurerm_lb_backend_address_pool.vault_server_pool.id
-  subnet_id = azurerm_subnet.my_terraform_subnet.id
-  resource_group_location = azurerm_resource_group.rg.location
-  resource_group_name  = azurerm_resource_group.rg.name
-  availability_set_id = azurerm_availability_set.vault.id
-  public_ip_address_id = azurerm_public_ip.vault_public_ip.id
-  ssh_priv_key = tls_private_key.ssh_allhosts.private_key_pem #Public host with Ansible needs private key for authenticating to other hosts
-}
+# module "vault_hosts_public" {
+#   for_each = toset(local.vault_hosts_public)
+#   source = "./modules/cluster"
+#   vault = true
+#   hostname = each.value
+#   public_key_openssh = tls_private_key.ssh_allhosts.public_key_openssh
+#   network_security_group_id = azurerm_network_security_group.my_terraform_nsg.id
+#   backend_address_pool_id = azurerm_lb_backend_address_pool.vault_server_pool.id
+#   subnet_id = azurerm_subnet.my_terraform_subnet.id
+#   resource_group_location = azurerm_resource_group.rg.location
+#   resource_group_name  = azurerm_resource_group.rg.name
+#   availability_set_id = azurerm_availability_set.vault.id
+#   public_ip_address_id = azurerm_public_ip.vault_public_ip.id
+#   ssh_priv_key = tls_private_key.ssh_allhosts.private_key_pem #Public host with Ansible needs private key for authenticating to other hosts
+# }
 
-module "consul_hosts" {
-  for_each = toset(local.consul_hosts)
-  source = "./modules/cluster"
-  vault = false
-  hostname = each.value
-  public_key_openssh = tls_private_key.ssh_allhosts.public_key_openssh
-  network_security_group_id = azurerm_network_security_group.my_terraform_nsg.id
-  backend_address_pool_id = azurerm_lb_backend_address_pool.vault_server_pool.id
-  subnet_id = azurerm_subnet.my_terraform_subnet.id
-  resource_group_location = azurerm_resource_group.rg.location
-  resource_group_name  = azurerm_resource_group.rg.name
-}
+# module "consul_hosts" {
+#   for_each = toset(local.consul_hosts)
+#   source = "./modules/cluster"
+#   vault = false
+#   hostname = each.value
+#   public_key_openssh = tls_private_key.ssh_allhosts.public_key_openssh
+#   network_security_group_id = azurerm_network_security_group.my_terraform_nsg.id
+#   backend_address_pool_id = azurerm_lb_backend_address_pool.vault_server_pool.id
+#   subnet_id = azurerm_subnet.my_terraform_subnet.id
+#   resource_group_location = azurerm_resource_group.rg.location
+#   resource_group_name  = azurerm_resource_group.rg.name
+# }
