@@ -1,11 +1,12 @@
 # Create virtual machine
 resource "azurerm_linux_virtual_machine" "vm" {
   name                            = var.hostname
-  location                        = var.resource_group_location
+  #location                        = var.resource_group_location #as of 08/09/2024 b1s is no longer available via useast
+  location                        = "uksouth"
   resource_group_name             = var.resource_group_name
   network_interface_ids           = [azurerm_network_interface.nic.id]
-  #size                            = "Standard_B1s"
-  size                            = "Standard_B2pts_v2"
+  size                            = "Standard_B1s"
+  #size                            = "Standard_B2pts_v2"
   computer_name                   = var.hostname
   admin_username                  = var.username
   disable_password_authentication = true
