@@ -4,7 +4,8 @@ resource "azurerm_linux_virtual_machine" "vm" {
   location                        = var.resource_group_location
   resource_group_name             = var.resource_group_name
   network_interface_ids           = [azurerm_network_interface.nic.id]
-  size                            = "Standard_B1s"
+  #size                            = "Standard_B1s"
+  size                            = "Standard_B2pts_v2"
   computer_name                   = var.hostname
   admin_username                  = var.username
   disable_password_authentication = true
@@ -19,8 +20,8 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
 source_image_reference {
     publisher = "Canonical"
-    offer     = "0001-com-ubuntu-server-focal"
-    sku       = "20_04-lts-gen2"
+    offer     = "ubuntu-24_04-lts"
+    sku       = "server"
     version   = "latest"
   }
 
