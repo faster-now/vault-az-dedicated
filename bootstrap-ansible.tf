@@ -24,6 +24,7 @@ resource "null_resource" "bootstrap_ansible" {
             "sudo apt-get update",
             "sudo apt-get install -y python3-pip",
             "pipx install ansible-core",
+            "pipx ensurepath",
         
             "sudo mkdir -p /tmp/build/",
             "sudo chmod 777 /tmp/build",
