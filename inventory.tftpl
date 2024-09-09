@@ -1,4 +1,4 @@
-vault-a ansible_host=localhost ansible_connection=local ansible_python_interpreter=/home/azureuser/.local/share/pipx/shared/bin/python
+#vault-a ansible_host=localhost ansible_connection=local ansible_python_interpreter=/home/azureuser/.local/share/pipx/shared/bin/python
 
 [vault]
 %{ for vault_host in vault_hosts ~}
@@ -15,8 +15,8 @@ ${consul_host}
 ${ansible_host}
 %{ endfor ~}
 
-[ansible:vars]
-ansible_python_interpreter=/home/azureuser/.local/share/pipx/shared/bin/python
+#[ansible:vars]
+#ansible_python_interpreter=/home/azureuser/.local/share/pipx/shared/bin/python
 
 [all:children]
 vault
